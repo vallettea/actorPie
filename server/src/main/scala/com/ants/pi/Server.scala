@@ -7,6 +7,10 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import akka.cluster.ClusterEvent.{MemberUp, ClusterDomainEvent}
 import akka.cluster.Cluster
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration._
 
 object Server extends App {
 
@@ -25,6 +29,7 @@ object Server extends App {
 class Ticker extends Actor with ActorLogging {
 
   implicit val ctx :ExecutionContext = context.dispatcher
+  implicit val timeout: Timeout = Timeout(5 seconds)
 
   var ticker :Cancellable = _
 
@@ -35,10 +40,13 @@ class Ticker extends Actor with ActorLogging {
       log.info("Got Pong from {}", sender)
       context watch sender
 
-      // ticker = context.system.scheduler.schedule(0 milliseconds,
-      //     500 milliseconds,
-      //     sender,
-      //     Led.TOGGLE)
+      
+
+      ticker = context.system.scheduler.schedule(0 milliseconds, 1000 milliseconds)({
+            val future = sender ? MeasureAnalog(0)
+            val result = Await.result(future, timeout.duration).asInstanceOf[Int]
+            println(result)
+          })
 
     case Terminated(x) ⇒
       log.info("Terminating {}", x)
